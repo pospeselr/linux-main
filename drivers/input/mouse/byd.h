@@ -1,5 +1,5 @@
 /*
- * byd.h --- Driver for BYD Touchpad
+ * BYD BTP-10463 touchpad PS/2 mouse driver
  *
  * Copyright (C) 2015, Tai Chi Minh Ralph Eastwood
  * Copyright (C) 2015, Martin Wimpress

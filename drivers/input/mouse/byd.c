@@ -1,27 +1,19 @@
 /*
- * byd.c --- Driver for BYD BTP-10463
+ * BYD BTP-10463 touchpad PS/2 mouse driver
  *
  * Copyright (C) 2015, Tai Chi Minh Ralph Eastwood
  * Copyright (C) 2015, Martin Wimpress
  * Copyright (C) 2015, Jay Kuri
  * Copyright (C) 2015, Richard Pospesel
  *
- * This program is free software; you can redistribute it and/or
- * modify it under the terms of the GNU General Public License as
- * published by the Free Software Foundation; either version 2 of the
- * License, or (at your option) any later version.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License version 2 as published by
+ * the Free Software Foundation.
  *
- * This program is distributed in the hope that it will be useful, but
- * WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
- * General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- * Protocol of BYD Touch Pad reverse-engineered.
- * Datasheet: http://bydit.com/userfiles/file/BTP10463-XXX.pdf
+ * Protocol of BYD Touch Pad reverse-engineered from windows driver:
+ * filename:  "byd touchpad driver - win7, 8, 8.1 - 2.4.1.102.zip"
+ * sha1:      97a0eca8edc482bf9d08ab9509084a514dad4c4b
+ * datasheet: http://bydit.com/userfiles/file/BTP10463-XXX.pdf
  *
  */
 #include <linux/types.h>
@@ -37,17 +29,18 @@
 
 #define BYD_MODEL_ID_LEN        2
 #define BYD_CMD_PAIR(c)		((1 << 12) | (c))
-#define BYD_CMD_PAIR_R(r,c)	((1 << 12) | (r << 8) | (c))
+#define BYD_CMD_PAIR_R(r, c)	((1 << 12) | (r << 8) | (c))
 
 /* BYD pad constants */
 
-/* 
+/*
  * true device resolution is unknown, however experiments show the
  * resolution is about 111 units/mm
  * absolute coordinate packets are in the range 0-255 for both X and y
- * we pick ABS_X/ABS_Y dimensions which are multiples of 256 and in 
- * the right ballpark given the touchpad's physical dimensions and estimate resolution
- * per spec sheet, device active area dimensions are 101.6 x 60.1 mm
+ * we pick ABS_X/ABS_Y dimensions which are multiples of 256 and in
+ * the right ballpark given the touchpad's physical dimensions and estimate
+ * resolution per spec sheet, device active area dimensions are
+ * 101.6 x 60.1 mm
  */
 
 #define BYD_CONST_PAD_WIDTH                     11264
@@ -57,7 +50,7 @@
 
 /* BYD commands reverse engineered from windows driver */
 
-/* 
+/*
  * swipe gesture from off-pad to on-pad
  *  0 : disable
  *  1 : enable
@@ -149,7 +142,7 @@
  *  0 - 7 : smallest to largest width
  */
 #define BYD_CMD_SET_LEFT_EDGE_REGION            0xdc
-/* 
+/*
  * top edge region size
  *  0 - 9 : smallest to largest height
  */
@@ -181,7 +174,7 @@
  */
 #define BYD_CMD_SET_EDGE_MOTION_SPEED           0xe4
 /*
- * two finger scolling funtion
+ * two finger scolling function
  *  0 : free scrolling
  *  1 : free scrolling (with momentum)
  *  2 : edge motion
@@ -196,7 +189,7 @@
 #define BYD_PKT_ABSOLUTE                        0xf8
 #define BYD_PKT_PINCH_IN                        0xd8
 #define BYD_PKT_PINCH_OUT                       0x28
-#define BYD_PKT_ROTATE_CLOCKWISE                0x29 
+#define BYD_PKT_ROTATE_CLOCKWISE                0x29
 #define BYD_PKT_ROTATE_ANTICLOCKWISE            0xd7
 #define BYD_PKT_TWO_FINGER_SCROLL_RIGHT         0x2a
 #define BYD_PKT_TWO_FINGER_SCROLL_DOWN          0x2b
@@ -230,7 +223,7 @@ static const struct byd_init_command_pair init_commands[] = {
 	{BYD_CMD_SET_PHYSICAL_BUTTONS, 0x04},
 	{BYD_CMD_SET_TAP, 0x02},
 	{BYD_CMD_SET_ONE_FINGER_SCROLL, 0x04},
-	{BYD_CMD_SET_ONE_FINGER_SCROLL_FUNC, 0x04},	
+	{BYD_CMD_SET_ONE_FINGER_SCROLL_FUNC, 0x04},
 	{BYD_CMD_SET_EDGE_MOTION, 0x01},
 	{BYD_CMD_SET_PALM_CHECK, 0x00},
 	{BYD_CMD_SET_MULTITOUCH, 0x02},
@@ -313,39 +306,40 @@ static psmouse_ret_t byd_process_byte(struct psmouse *psmouse)
 			packet[0], packet[1], packet[2], packet[3]);
 #endif
 
-	switch(packet[3])
-	{
-		case BYD_PKT_ABSOLUTE:
-			/* on first touch, use the absolute packet to determine our start location */
-			if(priv->touch == 0) {
-				priv->abs_x = packet[1] * (BYD_CONST_PAD_WIDTH / 256);
-				priv->abs_y = (255 - packet[2]) * (BYD_CONST_PAD_HEIGHT / 256);
+	switch (packet[3]) {
+	case BYD_PKT_ABSOLUTE:
+		/* on first touch, use the absolute packet to determine our start location */
+		if (priv->touch == 0) {
+			priv->abs_x = packet[1] * (BYD_CONST_PAD_WIDTH / 256);
+			priv->abs_y = (255 - packet[2]) * (BYD_CONST_PAD_HEIGHT / 256);
 
-				/* needed to detect tap */
-				if(now_msecs - priv->last_touch_time > 64) {
-					priv->touch = 1;
-				}
-			}
-			break;
-		case BYD_PKT_RELATIVE:
-			{
-				int32_t rel_x, rel_y;				
-				rel_x = packet[1] ? (int) packet[1] - (int) ((packet[0] << 4) & 0x100) : 0;
-				rel_y = packet[2] ? (int) ((packet[0] << 3) & 0x100) - (int) packet[2] : 0;
-
-				/* 
-				 * experiments show relative mouse packets come in increments of 
-				 * 1 unit / 11 msecs (regardless of time delta between relative packets)
-				 */
-				priv->abs_x += rel_x * 11;
-				priv->abs_y += rel_y * 11;
-
+			/* needed to detect tap */
+			if(now_msecs - priv->last_touch_time > 64) {
 				priv->touch = 1;
 			}
-			break;
-		default:
-			/* shoudn't be sending anything else, but ignore just in-case */
-			return PSMOUSE_FULL_PACKET;
+		}
+		break;
+	case BYD_PKT_RELATIVE:
+		{
+			int32_t rel_x, rel_y;
+
+			/* same as regular PS/2 psmouse protocoal */
+			rel_x = packet[1] ? (int) packet[1] - (int) ((packet[0] << 4) & 0x100) : 0;
+			rel_y = packet[2] ? (int) ((packet[0] << 3) & 0x100) - (int) packet[2] : 0;
+
+			/*
+			 * experiments show relative mouse packets come in increments of
+			 * 1 unit / 11 msecs (regardless of time delta between relative packets)
+			 */
+			priv->abs_x += rel_x * 11;
+			priv->abs_y += rel_y * 11;
+
+			priv->touch = 1;
+		}
+		break;
+	default:
+		/* shoudn't be sending anything else, but ignore just in-case */
+		return PSMOUSE_FULL_PACKET;
 	}
 
 	/* both ABS and REL packets report button states */
@@ -353,9 +347,9 @@ static psmouse_ret_t byd_process_byte(struct psmouse *psmouse)
 	priv->button_right = (packet[0] >> 1) & 1;
 
 	byd_report_input(psmouse);
-	
+
 	/* reset time since last touch */
-	if(priv->touch == 1) {
+	if (priv->touch == 1) {
 		priv->last_touch_time = now_msecs;
 		mod_timer(&priv->timer, jiffies + msecs_to_jiffies(64));
 	}
@@ -422,9 +416,9 @@ int byd_init(struct psmouse *psmouse)
 	/* magic identifier the vendor driver reads */
 	if (param[0] != 0x08 || param[1] != 0x01 ||
 	    param[2] != 0x01 || param[3] != 0x31) {
-#ifdef BYD_DEBUG		
+#ifdef BYD_DEBUG
 		psmouse_err(psmouse, "unknown magic, expected: 08 01 01 31\n");
-#endif	
+#endif
 		error = -EINVAL;
 		goto init_fail;
 	}
@@ -433,10 +427,10 @@ int byd_init(struct psmouse *psmouse)
 	 * send the byd vendor commands
 	 * these appear to be pairs of (command, param)
 	 */
-	for(i = 0; i < ARRAY_SIZE(init_commands); i++) {
+	for (i = 0; i < ARRAY_SIZE(init_commands); i++) {
 		param[0] = init_commands[i].value;
 		cmd = BYD_CMD_PAIR(init_commands[i].command);
-		if(ps2_command(ps2dev, param, cmd)) {
+		if (ps2_command(ps2dev, param, cmd)) {
 			error = -EIO;
 			goto init_fail;
 		}
@@ -458,7 +452,7 @@ int byd_init(struct psmouse *psmouse)
 
 	/* alloc space for byd_data */
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
-	if(!priv) {
+	if (!priv) {
 		error = -ENOMEM;
 		goto init_fail;
 	}
@@ -482,8 +476,9 @@ init_fail:
 
 static void byd_disconnect(struct psmouse *psmouse)
 {
-	if (psmouse->private) {	
+	if (psmouse->private) {
 		struct byd_data *priv = psmouse->private;
+
 		del_timer(&priv->timer);
 		kfree(psmouse->private);
 		psmouse->private = NULL;
@@ -540,15 +535,15 @@ int byd_detect(struct psmouse *psmouse, bool set_properties)
 
 	/* no match found */
 	if (i == ARRAY_SIZE(byd_model_data)) {
-#ifdef BYD_DEBUG		
+#ifdef BYD_DEBUG
 		psmouse_dbg(psmouse, "detect: no match found\n");
-#endif		
+#endif
 		return -EINVAL;
 	} else {
-#ifdef BYD_DEBUG		
+#ifdef BYD_DEBUG
 		psmouse_dbg(psmouse, "detect: matched %s\n",
 				byd_model_data[i].name);
-#endif		
+#endif
 	}
 
 	if (set_properties) {
