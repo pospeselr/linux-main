@@ -1105,12 +1105,6 @@ static int psmouse_extensions(struct psmouse *psmouse,
 				 &max_proto, set_properties, true)) {
 		return PSMOUSE_BYD;
 	}
-#if 0
-	    psmouse_do_detect(byd_detect, psmouse, set_properties) == 0) {
-		if (!set_properties || byd_init(psmouse) == 0)
-			return PSMOUSE_BYD;
-#endif
-
 
 	if (max_proto > PSMOUSE_IMEX) {
 		if (psmouse_try_protocol(psmouse, PSMOUSE_GENPS,
