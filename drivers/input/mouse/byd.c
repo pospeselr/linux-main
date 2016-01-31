@@ -3,6 +3,7 @@
  *
  * Copyright (C) 2015, Tai Chi Minh Ralph Eastwood
  * Copyright (C) 2015, Martin Wimpress
+ * Copyright (C) 2015, Jay Kuri
  * Copyright (C) 2015, Richard Pospesel
  *
  * This program is free software; you can redistribute it and/or
