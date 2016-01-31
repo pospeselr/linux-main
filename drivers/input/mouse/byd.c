@@ -314,7 +314,7 @@ static psmouse_ret_t byd_process_byte(struct psmouse *psmouse)
 			priv->abs_y = (255 - packet[2]) * (BYD_CONST_PAD_HEIGHT / 256);
 
 			/* needed to detect tap */
-			if(now_msecs - priv->last_touch_time > 64) {
+			if (now_msecs - priv->last_touch_time > 64) {
 				priv->touch = 1;
 			}
 		}
@@ -552,7 +552,7 @@ int byd_detect(struct psmouse *psmouse, bool set_properties)
 		__set_bit(INPUT_PROP_POINTER, dev->propbit);
 
 		/* touchpad */
- 		__set_bit(BTN_TOUCH, dev->keybit);
+		__set_bit(BTN_TOUCH, dev->keybit);
 		__set_bit(BTN_TOOL_FINGER, dev->keybit);
 
 		/* buttons */

@@ -1101,7 +1101,7 @@ static int psmouse_extensions(struct psmouse *psmouse,
 
 	/* Try BYD touchpad. */
 	if (max_proto > PSMOUSE_IMEX &&
-		psmouse_try_protocol(psmouse, PSMOUSE_BYD, 
+		psmouse_try_protocol(psmouse, PSMOUSE_BYD,
 				 &max_proto, set_properties, true)) {
 		return PSMOUSE_BYD;
 	}
